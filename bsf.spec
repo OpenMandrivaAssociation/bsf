@@ -4,7 +4,7 @@
 
 Name:           bsf
 Version:        2.4.0
-Release:        %mkrel 1.1
+Release:        %mkrel 1.2
 Epoch:          0
 Summary:        Bean Scripting Framework
 License:        Apache License
