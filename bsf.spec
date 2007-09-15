@@ -4,7 +4,7 @@
 
 Name:           bsf
 Version:        2.4.0
-Release:        %mkrel 1.2
+Release:        %mkrel 1.3
 Epoch:          0
 Summary:        Bean Scripting Framework
 License:        Apache License
@@ -32,8 +32,6 @@ BuildRequires:  xalan-j2
 %endif
 BuildRequires:  servletapi5
 %if %{gcj_support}
-Requires(post): java-gcj-compat
-Requires(postun): java-gcj-compat
 BuildRequires:  java-gcj-compat-devel
 %else
 Buildarch:      noarch
