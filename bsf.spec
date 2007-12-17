@@ -37,7 +37,6 @@ BuildRequires:  java-gcj-compat-devel
 %else
 Buildarch:      noarch
 %endif
-BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root
 
 %description
 Bean Scripting Framework (BSF) is a set of Java classes which provides
