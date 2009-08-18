@@ -1,10 +1,10 @@
 %define section         free
 %bcond_without          full
-%define gcj_support     1
+%define gcj_support     0
 
 Name:           bsf
 Version:        2.4.0
-Release:        %mkrel 1.5
+Release:        %mkrel 1.6
 Epoch:          0
 Summary:        Bean Scripting Framework
 License:        Apache License
@@ -20,7 +20,7 @@ Requires:       jakarta-commons-logging
 Requires:       jython
 Requires:       rhino
 Requires:       servletapi5
-Requires:       xalan-j2
+Requires:       java >= 0:1.6
 BuildRequires:  ant
 BuildRequires:  jakarta-commons-logging
 %if %with full
@@ -28,7 +28,7 @@ BuildRequires:  jakarta-commons-logging
 BuildRequires:  jython
 #BuildRequires: netrexx
 BuildRequires:  rhino
-BuildRequires:  xalan-j2
+BuildRequires:  java-devel >= 0:1.6
 %endif
 BuildRequires:  servletapi5
 BuildRequires:	java-rpmbuild
