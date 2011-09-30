@@ -1,43 +1,61 @@
-%define section         free
-%bcond_without          full
-%define gcj_support     0
+# Copyright (c) 2000-2005, JPackage Project
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the
+#    distribution.
+# 3. Neither the name of the JPackage Project nor the names of its
+#    contributors may be used to endorse or promote products derived
+#    from this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
 
 Name:           bsf
 Version:        2.4.0
-Release:        %mkrel 1.9
-Epoch:          0
+Release:        9
 Summary:        Bean Scripting Framework
-License:        Apache License
-Url:            http://jakarta.apache.org/bsf/
+License:        ASL 2.0
+URL:            http://jakarta.apache.org/bsf/
 Group:          Development/Java
-#Vendor:        JPackage Project
-#Distribution:  JPackage
-Source0:        http://www.apache.org/dist/jakarta/bsf/source/bsf-src-%{version}.tar.gz
-Source1:        http://www.apache.org/dist/jakarta/bsf/source/bsf-src-%{version}.tar.gz.asc
-Source2:        http://www.apache.org/dist/jakarta/bsf/source/bsf-src-%{version}.tar.gz.md5
-Source3:        build-properties.xml
-Requires:       jakarta-commons-logging
-Requires:       jython
-Requires:       rhino
-Requires:       servletapi5
-Requires:       java >= 0:1.6
+Source0:        http://apache.osuosl.org/jakarta/%{name}/source/%{name}-src-%{version}.tar.gz
+Source1:        %{name}-pom.xml
+Patch0:         build-file.patch
+Patch1:	        build.properties.patch
+BuildRequires:  jpackage-utils >= 1.6
 BuildRequires:  ant
-BuildRequires:  jakarta-commons-logging
-%if %with full
-#BuildRequires: jacl
+BuildRequires:  servlet6
+BuildRequires:  tomcat6-jsp-2.1-api
+BuildRequires:  xalan-j2
 BuildRequires:  jython
-#BuildRequires: netrexx
+BuildRequires:  apache-commons-logging
 BuildRequires:  rhino
-BuildRequires:  java-devel >= 0:1.6
-%endif
-BuildRequires:  servletapi5
-BuildRequires:	java-rpmbuild
-%if %{gcj_support}
-BuildRequires:  java-gcj-compat-devel
-%else
-Buildarch:      noarch
-%endif
-BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root
+Requires:	apache-commons-logging
+Requires:       servlet6
+Requires:       xalan-j2
+Requires:       tomcat6-jsp-2.1-api
+Requires:       jpackage-utils
+Requires(post):	  jpackage-utils
+Requires(postun): jpackage-utils
+BuildArch:      noarch
+BuildRoot:       %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 
 %description
 Bean Scripting Framework (BSF) is a set of Java classes which provides
@@ -74,68 +92,56 @@ Javadoc for %{name}.
 
 %prep
 %setup -q
-%{_bindir}/find . -name '*.jar' -o -name '*.class' | %{_bindir}/xargs -t %{__rm}
-%{__cp} -a %{SOURCE3} build-properties.xml
+# remove all binary libs
+find . -name "*.jar" -exec %{__rm} -f {} \;
+%{__rm} -fr bsf
+
+%patch0 -p1
+%patch1 -p1
 
 %build
-%if %with full
-export CLASSPATH=$(build-classpath rhino xalan-j2 jython servletapi5 jspapi jakarta-commons-logging)
-%else
-export CLASSPATH=$(build-classpath servletapi5 jspapi jakarta-commons-logging)
-%endif
-##export CLASSPATH=$CLASSPATH:$JAVA_HOME/lib/tools.jar
-%{ant} bindist
+[ -z "$JAVA_HOME" ] && export JAVA_HOME=%{_jvmdir}/java 
+export CLASSPATH=$(build-classpath apache-commons-logging jython xalan-j2 servlet jsp rhino)
+ant jar 
+%{__rm} -rf bsf/src/org/apache/bsf/engines/java
+ant javadocs
 
 %install
-%{__rm} -rf %{buildroot}
+%{__rm} -fr %{buildroot}
 # jar
-%{__mkdir_p} 755 %{buildroot}%{_javadir}
-%{__cp} -a dist/bsf-%{version}/lib/bsf.jar %{buildroot}%{_javadir}/%{name}-%{version}.jar
-(cd %{buildroot}%{_javadir} && for jar in *-%{version}*; do %{__ln_s} ${jar} ${jar/-%{version}/}; done)
+%{__install} -d -m 755 %{buildroot}%{_javadir}
+%{__install} -m 644 build/lib/%{name}.jar \
+%{buildroot}%{_javadir}/%{name}-%{version}.jar
+(cd %{buildroot}%{_javadir} && for jar in *-%{version}*; do \
+ln -sf ${jar} ${jar/-%{version}/}; done)
 # javadoc
-%{__mkdir_p} %{buildroot}%{_javadocdir}/%{name}-%{version}
-%{__cp} -a dist/bsf-%{version}/docs/api/* %{buildroot}%{_javadocdir}/%{name}-%{version}
-(cd %{buildroot}%{_javadocdir} && %{__ln_s} %{name}-%{version} %{name})
+%{__install} -d -m 755 %{buildroot}%{_javadocdir}/%{name}-%{version}
+%{__cp} -pr build/javadocs/* %{buildroot}%{_javadocdir}/%{name}-%{version}
+(cd %{buildroot}%{_javadocdir} && ln -sf %{name}-%{version} %{name})
+ln -s %{name}-%{version} %{buildroot}%{_javadocdir}/%{name}
 
-%{__perl} -pi -e 's/\r$//g' dist/bsf-%{version}/samples/scriptedui/ui.jacl dist/bsf-%{version}/samples/scriptedui/ui.py
+%{__install} -DTm 644 %{SOURCE1} %{buildroot}%{_mavenpomdir}/JPP-%{name}.pom
+%add_to_maven_depmap org.apache.bsf %{name} %{version} JPP %{name}
 
-%if %{gcj_support}
-%{_bindir}/aot-compile-rpm
-%endif
+%post
+%update_maven_depmap
+
+%postun
+%update_maven_depmap
 
 %clean
 %{__rm} -rf %{buildroot}
 
-%if %{gcj_support}
-%post
-%{update_gcjdb}
-
-%postun
-%{clean_gcjdb}
-%endif
-
-%post javadoc
-%{__rm} -f %{_javadocdir}/%{name}
-%{__ln_s} %{name}-%{version} %{_javadocdir}/%{name}
-
-%postun javadoc
-if [ $1 -eq 0 ]; then
-  %{__rm} -f %{_javadocdir}/%{name}
-fi
-
 %files
-%defattr(0644,root,root,0755)
-%doc dist/bsf-%{version}/*.txt dist/bsf-%{version}/samples
+%defattr(-,root,root)
+%doc LICENSE.txt AUTHORS.txt CHANGES.txt NOTICE.txt README.txt TODO.txt RELEASE-NOTE.txt
 %{_javadir}/*
-%if %{gcj_support}
-%dir %{_libdir}/gcj/%{name}
-%attr(-,root,root) %{_libdir}/gcj/%{name}/*
-%endif
+%{_mavenpomdir}/*
+%{_mavendepmapfragdir}/*
 
 %files javadoc
-%defattr(0644,root,root,0755)
+%defattr(-,root,root)
 %dir %{_javadocdir}/%{name}-%{version}
 %{_javadocdir}/%{name}-%{version}/*
-%ghost %{_javadocdir}/%{name}
-
+%{_javadocdir}/%{name}
 
