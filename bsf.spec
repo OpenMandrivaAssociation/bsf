@@ -30,7 +30,7 @@
 
 Name:           bsf
 Version:        2.4.0
-Release:        9
+Release:        10
 Summary:        Bean Scripting Framework
 License:        ASL 2.0
 URL:            http://jakarta.apache.org/bsf/
