@@ -1,61 +1,42 @@
-# Copyright (c) 2000-2005, JPackage Project
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
-#
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in the
-#    documentation and/or other materials provided with the
-#    distribution.
-# 3. Neither the name of the JPackage Project nor the names of its
-#    contributors may be used to endorse or promote products derived
-#    from this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
+%define section         free
+%bcond_without          full
+%define gcj_support     0
 
 Name:           bsf
 Version:        2.4.0
-Release:        13
+Release:        3
+Epoch:          0
 Summary:        Bean Scripting Framework
-License:        ASL 2.0
-URL:            http://jakarta.apache.org/bsf/
+License:        Apache License
+Url:            http://jakarta.apache.org/bsf/
 Group:          Development/Java
-Source0:        http://apache.osuosl.org/jakarta/%{name}/source/%{name}-src-%{version}.tar.gz
-Source1:        %{name}-pom.xml
-Patch0:         build-file.patch
-Patch1:	        build.properties.patch
-BuildRequires:  jpackage-utils >= 1.6
+#Vendor:        JPackage Project
+#Distribution:  JPackage
+Source0:        http://www.apache.org/dist/jakarta/bsf/source/bsf-src-%{version}.tar.gz
+Source1:        http://www.apache.org/dist/jakarta/bsf/source/bsf-src-%{version}.tar.gz.asc
+Source2:        http://www.apache.org/dist/jakarta/bsf/source/bsf-src-%{version}.tar.gz.md5
+Source3:        build-properties.xml
+Requires:       jakarta-commons-logging
+Requires:       jython
+Requires:       rhino
+Requires:       servletapi5
+Requires:       java >= 0:1.6
 BuildRequires:  ant
-BuildRequires:  servlet6
-BuildRequires:  tomcat6-jsp-2.1-api
-BuildRequires:  xalan-j2
+BuildRequires:  jakarta-commons-logging
+%if %with full
+#BuildRequires: jacl
 BuildRequires:  jython
-BuildRequires:  apache-commons-logging
+#BuildRequires: netrexx
 BuildRequires:  rhino
-Requires:	apache-commons-logging
-Requires:       servlet6
-Requires:       xalan-j2
-Requires:       tomcat6-jsp-2.1-api
-Requires:       jpackage-utils
-Requires(post):	  jpackage-utils
-Requires(postun): jpackage-utils
-BuildArch:      noarch
-BuildRoot:       %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
+BuildRequires:  java-devel >= 0:1.6
+%endif
+BuildRequires:  servletapi5
+BuildRequires:	java-rpmbuild
+%if %{gcj_support}
+BuildRequires:  java-gcj-compat-devel
+%else
+Buildarch:      noarch
+%endif
 
 %description
 Bean Scripting Framework (BSF) is a set of Java classes which provides
@@ -92,56 +73,131 @@ Javadoc for %{name}.
 
 %prep
 %setup -q
-# remove all binary libs
-find . -name "*.jar" -exec %{__rm} -f {} \;
-%{__rm} -fr bsf
-
-%patch0 -p1
-%patch1 -p1
+%{_bindir}/find . -name '*.jar' -o -name '*.class' | %{_bindir}/xargs -t %{__rm}
+cp -a %{SOURCE3} build-properties.xml
 
 %build
-[ -z "$JAVA_HOME" ] && export JAVA_HOME=%{_jvmdir}/java 
-export CLASSPATH=$(build-classpath apache-commons-logging jython xalan-j2 servlet jsp rhino)
-ant jar 
-%{__rm} -rf bsf/src/org/apache/bsf/engines/java
-ant javadocs
+%if %with full
+export CLASSPATH=$(build-classpath rhino xalan-j2 jython servletapi5 jspapi jakarta-commons-logging)
+%else
+export CLASSPATH=$(build-classpath servletapi5 jspapi jakarta-commons-logging)
+%endif
+##export CLASSPATH=$CLASSPATH:$JAVA_HOME/lib/tools.jar
+%{ant} bindist
 
 %install
-%{__rm} -fr %{buildroot}
+%{__rm} -rf %{buildroot}
 # jar
-%{__install} -d -m 755 %{buildroot}%{_javadir}
-%{__install} -m 644 build/lib/%{name}.jar \
-%{buildroot}%{_javadir}/%{name}-%{version}.jar
-(cd %{buildroot}%{_javadir} && for jar in *-%{version}*; do \
-ln -sf ${jar} ${jar/-%{version}/}; done)
+%{__mkdir_p} 755 %{buildroot}%{_javadir}
+cp -a dist/bsf-%{version}/lib/bsf.jar %{buildroot}%{_javadir}/%{name}-%{version}.jar
+(cd %{buildroot}%{_javadir} && for jar in *-%{version}*; do %{__ln_s} ${jar} ${jar/-%{version}/}; done)
 # javadoc
-%{__install} -d -m 755 %{buildroot}%{_javadocdir}/%{name}-%{version}
-%{__cp} -pr build/javadocs/* %{buildroot}%{_javadocdir}/%{name}-%{version}
-(cd %{buildroot}%{_javadocdir} && ln -sf %{name}-%{version} %{name})
-ln -s %{name}-%{version} %{buildroot}%{_javadocdir}/%{name}
+%{__mkdir_p} %{buildroot}%{_javadocdir}/%{name}-%{version}
+cp -a dist/bsf-%{version}/docs/api/* %{buildroot}%{_javadocdir}/%{name}-%{version}
+(cd %{buildroot}%{_javadocdir} && %{__ln_s} %{name}-%{version} %{name})
 
-%{__install} -DTm 644 %{SOURCE1} %{buildroot}%{_mavenpomdir}/JPP-%{name}.pom
-%add_to_maven_depmap org.apache.bsf %{name} %{version} JPP %{name}
+%{__perl} -pi -e 's/\r$//g' dist/bsf-%{version}/samples/scriptedui/ui.jacl dist/bsf-%{version}/samples/scriptedui/ui.py
 
+%if %{gcj_support}
+%{_bindir}/aot-compile-rpm
+%endif
+
+%if %{gcj_support}
 %post
-%update_maven_depmap
+%{update_gcjdb}
 
 %postun
-%update_maven_depmap
+%{clean_gcjdb}
+%endif
 
-%clean
-%{__rm} -rf %{buildroot}
+%post javadoc
+%{__rm} -f %{_javadocdir}/%{name}
+%{__ln_s} %{name}-%{version} %{_javadocdir}/%{name}
+
+%postun javadoc
+if [ $1 -eq 0 ]; then
+  %{__rm} -f %{_javadocdir}/%{name}
+fi
 
 %files
-%defattr(-,root,root)
-%doc LICENSE.txt AUTHORS.txt CHANGES.txt NOTICE.txt README.txt TODO.txt RELEASE-NOTE.txt
+%defattr(0644,root,root,0755)
+%doc dist/bsf-%{version}/*.txt dist/bsf-%{version}/samples
 %{_javadir}/*
-%{_mavenpomdir}/*
-%{_mavendepmapfragdir}/*
+%if %{gcj_support}
+%dir %{_libdir}/gcj/%{name}
+%attr(-,root,root) %{_libdir}/gcj/%{name}/*
+%endif
 
 %files javadoc
-%defattr(-,root,root)
+%defattr(0644,root,root,0755)
 %dir %{_javadocdir}/%{name}-%{version}
 %{_javadocdir}/%{name}-%{version}/*
-%{_javadocdir}/%{name}
+%ghost %{_javadocdir}/%{name}
+
+
+
+
+%changelog
+* Tue Nov 30 2010 Oden Eriksson <oeriksson@mandriva.com> 0:2.4.0-1.8mdv2011.0
++ Revision: 603771
+- rebuild
+
+* Tue Mar 16 2010 Oden Eriksson <oeriksson@mandriva.com> 0:2.4.0-1.7mdv2010.1
++ Revision: 522302
+- rebuilt for 2010.1
+
+* Tue Aug 18 2009 Jaroslav Tulach <jtulach@mandriva.org> 0:2.4.0-1.6mdv2010.0
++ Revision: 417724
+- Simplifying dependencies. Requiring java 1.6 and removing special dependencies on various XML tools as they are part of java 1.6 already
+
+* Sun Aug 09 2009 Oden Eriksson <oeriksson@mandriva.com> 0:2.4.0-1.5mdv2010.0
++ Revision: 413186
+- rebuild
+
+* Fri Dec 21 2007 Olivier Blin <oblin@mandriva.com> 0:2.4.0-1.4mdv2009.0
++ Revision: 136280
+- restore BuildRoot
+
+  + Thierry Vignaud <tv@mandriva.org>
+    - kill re-definition of %%buildroot on Pixel's request
+
+* Sun Dec 16 2007 Anssi Hannula <anssi@mandriva.org> 0:2.4.0-1.4mdv2008.1
++ Revision: 120805
+- buildrequires java-rpmbuild
+
+* Sat Sep 15 2007 Anssi Hannula <anssi@mandriva.org> 0:2.4.0-1.3mdv2008.0
++ Revision: 87257
+- rebuild to filter out autorequires of GCJ AOT objects
+- remove unnecessary Requires(post) on java-gcj-compat
+
+* Sat Sep 08 2007 Pascal Terjan <pterjan@mandriva.org> 0:2.4.0-1.2mdv2008.0
++ Revision: 82698
+- update to new version
+
+
+* Thu Mar 22 2007 David Walluck <walluck@mandriva.org> 0:2.4.0-1.1mdv2007.1
++ Revision: 147890
+- (Build)Requires jakarta-commons-logging, not log4j
+- fix (Build)Requires, specifically log4j
+- 2.4.0
+- Import bsf
+
+* Sun Jul 23 2006 David Walluck <walluck@mandriva.org> 0:2.3.0-10.1mdv2007.0
+- bump release
+
+* Sun Jun 04 2006 David Walluck <walluck@mandriva.org> 0:2.3.0-8.3mdv2007.0
+- rebuild for libgcj.so.7
+- aot-compile
+
+* Mon May 16 2005 David Walluck <walluck@mandriva.org> 0:2.3.0-8.2mdk
+- update javac patch
+
+* Mon May 16 2005 David Walluck <walluck@mandriva.org> 0:2.3.0-8.1mdk
+- release
+
+* Wed Nov 03 2004 Nicolas Mailhot <nim@jpackage.org>  0:2.3.0-8jpp
+- Clean up specfile a bit
+
+* Sat Aug 21 2004 Ralph Apel <r.apel at r-apel.de> 0:2.3.0-7jpp
+- Build with ant-1.6.2
 
