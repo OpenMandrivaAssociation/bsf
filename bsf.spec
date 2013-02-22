@@ -4,7 +4,7 @@
 
 Name:           bsf
 Version:        2.4.0
-Release:        3
+Release:        4
 Epoch:          0
 Summary:        Bean Scripting Framework
 License:        Apache License
@@ -19,7 +19,7 @@ Source3:        build-properties.xml
 Requires:       jakarta-commons-logging
 Requires:       jython
 Requires:       rhino
-Requires:       servletapi5
+Requires:       servlet6
 Requires:       java >= 0:1.6
 BuildRequires:  ant
 BuildRequires:  jakarta-commons-logging
@@ -30,7 +30,8 @@ BuildRequires:  jython
 BuildRequires:  rhino
 BuildRequires:  java-devel >= 0:1.6
 %endif
-BuildRequires:  servletapi5
+BuildRequires:  servlet6
+BuildRequires:	tomcat6-jsp-2.1-api
 BuildRequires:	java-rpmbuild
 %if %{gcj_support}
 BuildRequires:  java-gcj-compat-devel
@@ -78,9 +79,9 @@ cp -a %{SOURCE3} build-properties.xml
 
 %build
 %if %with full
-export CLASSPATH=$(build-classpath rhino xalan-j2 jython servletapi5 jspapi jakarta-commons-logging)
+export CLASSPATH=$(build-classpath rhino xalan-j2 jython tomcat6-servlet-2.5-api tomcat6-jsp-2.1-api jakarta-commons-logging)
 %else
-export CLASSPATH=$(build-classpath servletapi5 jspapi jakarta-commons-logging)
+export CLASSPATH=$(build-classpath tomcat6-servlet-2.5-api tomcat6-jsp-2.1-api jakarta-commons-logging)
 %endif
 ##export CLASSPATH=$CLASSPATH:$JAVA_HOME/lib/tools.jar
 %{ant} bindist
