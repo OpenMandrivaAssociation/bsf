@@ -1,43 +1,57 @@
-%define section         free
-%bcond_without          full
-%define gcj_support     0
+%{?_javapackages_macros:%_javapackages_macros}
+%undefine __cp
+%define __cp /bin/cp
+# Copyright (c) 2000-2005, JPackage Project
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the
+#    distribution.
+# 3. Neither the name of the JPackage Project nor the names of its
+#    contributors may be used to endorse or promote products derived
+#    from this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
 
 Name:           bsf
 Version:        2.4.0
-Release:        8
+Release:        17.1%{?dist}
 Epoch:          0
 Summary:        Bean Scripting Framework
-License:        Apache License
-Url:            http://jakarta.apache.org/bsf/
-Group:          Development/Java
-#Vendor:        JPackage Project
-#Distribution:  JPackage
-Source0:        http://www.apache.org/dist/jakarta/bsf/source/bsf-src-%{version}.tar.gz
-Source1:        http://www.apache.org/dist/jakarta/bsf/source/bsf-src-%{version}.tar.gz.asc
-Source2:        http://www.apache.org/dist/jakarta/bsf/source/bsf-src-%{version}.tar.gz.md5
-Source3:        build-properties.xml
-Requires:       jakarta-commons-logging
-Requires:       jython
-Requires:       rhino
-Requires:       servlet6
-Requires:       java >= 0:1.6
+License:        ASL 2.0
+URL:            http://commons.apache.org/bsf/
+
+Source0:        http://apache.mirror.anlx.net//commons/%{name}/source/%{name}-src-%{version}.tar.gz
+Source1:        %{name}-pom.xml
+Patch0:         build-file.patch
+Patch1:	        build.properties.patch
+BuildRequires:  jpackage-utils >= 1.6
 BuildRequires:  ant
-BuildRequires:  jakarta-commons-logging
-%if %with full
-#BuildRequires: jacl
-BuildRequires:  jython
-#BuildRequires: netrexx
+BuildRequires:  xalan-j2
 BuildRequires:  rhino
-BuildRequires:  java-devel >= 0:1.6
-%endif
-BuildRequires:  servlet6
-BuildRequires:	tomcat6-jsp-2.1-api
-BuildRequires:	java-rpmbuild
-%if %{gcj_support}
-BuildRequires:  java-gcj-compat-devel
-%else
-Buildarch:      noarch
-%endif
+BuildRequires:  apache-commons-logging
+Requires:       xalan-j2
+Requires:       apache-commons-logging
+Requires:       jpackage-utils
+BuildArch:      noarch
 
 %description
 Bean Scripting Framework (BSF) is a set of Java classes which provides
@@ -67,138 +81,187 @@ engines:
 
 %package javadoc
 Summary:        Javadoc for %{name}
-Group:          Development/Java
+
+Requires:       jpackage-utils
 
 %description javadoc
 Javadoc for %{name}.
 
 %prep
 %setup -q
-%{_bindir}/find . -name '*.jar' -o -name '*.class' | %{_bindir}/xargs -t %{__rm}
-cp -a %{SOURCE3} build-properties.xml
+# remove all binary libs
+find . -name "*.jar" -exec %{__rm} -f {} \;
+%{__rm} -fr bsf
+
+%patch0 -p1
+%patch1 -p1
 
 %build
-%if %with full
-export CLASSPATH=$(build-classpath rhino xalan-j2 jython tomcat6-servlet-2.5-api tomcat6-jsp-2.1-api jakarta-commons-logging)
-%else
-export CLASSPATH=$(build-classpath tomcat6-servlet-2.5-api tomcat6-jsp-2.1-api jakarta-commons-logging)
-%endif
-##export CLASSPATH=$CLASSPATH:$JAVA_HOME/lib/tools.jar
-%{ant} bindist
+[ -z "$JAVA_HOME" ] && export JAVA_HOME=%{_jvmdir}/java
+export CLASSPATH=$(build-classpath apache-commons-logging xalan-j2 rhino)
+ant jar
+%{__rm} -rf bsf/src/org/apache/bsf/engines/java
+ant javadocs
 
 %install
-%{__rm} -rf %{buildroot}
 # jar
-%{__mkdir_p} 755 %{buildroot}%{_javadir}
-cp -a dist/bsf-%{version}/lib/bsf.jar %{buildroot}%{_javadir}/%{name}-%{version}.jar
-(cd %{buildroot}%{_javadir} && for jar in *-%{version}*; do %{__ln_s} ${jar} ${jar/-%{version}/}; done)
+%{__install} -d -m 755 %{buildroot}%{_javadir}
+%{__install} -m 644 build/lib/%{name}.jar \
+             %{buildroot}%{_javadir}/%{name}.jar
 # javadoc
-%{__mkdir_p} %{buildroot}%{_javadocdir}/%{name}-%{version}
-cp -a dist/bsf-%{version}/docs/api/* %{buildroot}%{_javadocdir}/%{name}-%{version}
-(cd %{buildroot}%{_javadocdir} && %{__ln_s} %{name}-%{version} %{name})
+%{__install} -d -m 755 %{buildroot}%{_javadocdir}/%{name}
+%{__cp} -pr build/javadocs/* %{buildroot}%{_javadocdir}/%{name}
 
-%{__perl} -pi -e 's/\r$//g' dist/bsf-%{version}/samples/scriptedui/ui.jacl dist/bsf-%{version}/samples/scriptedui/ui.py
+%{__install} -DTm 644 %{SOURCE1} %{buildroot}%{_mavenpomdir}/JPP-%{name}.pom
+%add_maven_depmap JPP-%{name}.pom %{name}.jar -a "org.apache.bsf:%{name}"
 
-%if %{gcj_support}
-%{_bindir}/aot-compile-rpm
-%endif
-
-%if %{gcj_support}
-%post
-%{update_gcjdb}
-
-%postun
-%{clean_gcjdb}
-%endif
-
-%post javadoc
-%{__rm} -f %{_javadocdir}/%{name}
-%{__ln_s} %{name}-%{version} %{_javadocdir}/%{name}
-
-%postun javadoc
-if [ $1 -eq 0 ]; then
-  %{__rm} -f %{_javadocdir}/%{name}
-fi
+%pre javadoc
+# workaround for rpm bug, can be removed in F-20
+[ $1 -gt 1 ] && [ -L %{_javadocdir}/%{name} ] && \
+rm -rf $(readlink -f %{_javadocdir}/%{name}) %{_javadocdir}/%{name} || :
 
 %files
-%defattr(0644,root,root,0755)
-%doc dist/bsf-%{version}/*.txt dist/bsf-%{version}/samples
-%{_javadir}/*
-%if %{gcj_support}
-%dir %{_libdir}/gcj/%{name}
-%attr(-,root,root) %{_libdir}/gcj/%{name}/*
-%endif
+%doc LICENSE.txt AUTHORS.txt CHANGES.txt NOTICE.txt README.txt TODO.txt RELEASE-NOTE.txt
+%{_javadir}/%{name}.jar
+%{_mavenpomdir}/JPP-%{name}.pom
+%{_mavendepmapfragdir}/%{name}
 
 %files javadoc
-%defattr(0644,root,root,0755)
-%dir %{_javadocdir}/%{name}-%{version}
-%{_javadocdir}/%{name}-%{version}/*
-%ghost %{_javadocdir}/%{name}
-
-
-
+%doc LICENSE.txt NOTICE.txt
+%{_javadocdir}/%{name}
 
 %changelog
-* Tue Nov 30 2010 Oden Eriksson <oeriksson@mandriva.com> 0:2.4.0-1.8mdv2011.0
-+ Revision: 603771
-- rebuild
+* Sat Aug 03 2013 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 0:2.4.0-17
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_20_Mass_Rebuild
 
-* Tue Mar 16 2010 Oden Eriksson <oeriksson@mandriva.com> 0:2.4.0-1.7mdv2010.1
-+ Revision: 522302
-- rebuilt for 2010.1
+* Wed Feb 13 2013 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 0:2.4.0-16
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_19_Mass_Rebuild
 
-* Tue Aug 18 2009 Jaroslav Tulach <jtulach@mandriva.org> 0:2.4.0-1.6mdv2010.0
-+ Revision: 417724
-- Simplifying dependencies. Requiring java 1.6 and removing special dependencies on various XML tools as they are part of java 1.6 already
+* Thu Nov 22 2012 Tomas Radej <tradej@redhat.com> - 0:2.4.0-15
+- Fixed URL of Source0
 
-* Sun Aug 09 2009 Oden Eriksson <oeriksson@mandriva.com> 0:2.4.0-1.5mdv2010.0
-+ Revision: 413186
-- rebuild
+* Tue Nov 20 2012 Mikolaj Izdebski <mizdebsk@redhat.com> - 0:2.4.0-14
+- Remove unneeded BR: jython
 
-* Fri Dec 21 2007 Olivier Blin <oblin@mandriva.com> 0:2.4.0-1.4mdv2009.0
-+ Revision: 136280
-- restore BuildRoot
+* Wed Jul 18 2012 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 0:2.4.0-13
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_18_Mass_Rebuild
 
-  + Thierry Vignaud <tv@mandriva.org>
-    - kill re-definition of %%buildroot on Pixel's request
+* Fri Mar 16 2012 Alexander Kurtakov <akurtako@redhat.com> 0:2.4.0-12
+- Drop jsp/servlet api dependencies, leftovers from the past.
 
-* Sun Dec 16 2007 Anssi Hannula <anssi@mandriva.org> 0:2.4.0-1.4mdv2008.1
-+ Revision: 120805
-- buildrequires java-rpmbuild
+* Thu Jan 12 2012 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 0:2.4.0-11
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_17_Mass_Rebuild
 
-* Sat Sep 15 2007 Anssi Hannula <anssi@mandriva.org> 0:2.4.0-1.3mdv2008.0
-+ Revision: 87257
-- rebuild to filter out autorequires of GCJ AOT objects
-- remove unnecessary Requires(post) on java-gcj-compat
+* Fri Dec  2 2011 Stanislav Ochotnicky <sochotnicky@redhat.com> - 0:2.4.0-10
+- Fixes according to latest guidelines
+- Fix maven depmap
 
-* Sat Sep 08 2007 Pascal Terjan <pterjan@mandriva.org> 0:2.4.0-1.2mdv2008.0
-+ Revision: 82698
-- update to new version
+* Mon Feb 07 2011 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 0:2.4.0-9
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_15_Mass_Rebuild
 
+* Tue Sep 21 2010 Orion Poplawski <orion@cora.nwra.com> - 0:2.4.0-8
+- Build against rhino for JavaScript support
 
-* Thu Mar 22 2007 David Walluck <walluck@mandriva.org> 0:2.4.0-1.1mdv2007.1
-+ Revision: 147890
-- (Build)Requires jakarta-commons-logging, not log4j
-- fix (Build)Requires, specifically log4j
-- 2.4.0
-- Import bsf
+* Mon Jun 14 2010 Stanislav Ochotnicky <sochotnicky@redhat.com> - 0:2.4.0-7
+- Added pom file to enable maven dependency resolution
+- Fix Source0 URL
+- Fix Group designation
 
-* Sun Jul 23 2006 David Walluck <walluck@mandriva.org> 0:2.3.0-10.1mdv2007.0
-- bump release
+* Mon Jun  7 2010 Stanislav Ochotnicky <sochotnicky@redhat.com> - 0:2.4.0-6
+- Fix BR after jakarta-commons rename
 
-* Sun Jun 04 2006 David Walluck <walluck@mandriva.org> 0:2.3.0-8.3mdv2007.0
-- rebuild for libgcj.so.7
-- aot-compile
+* Wed Apr 7 2010 Alexander Kurtakov <akurtako@redhat.com> 0:2.4.0-5
+- Drop gcj support.
+- Build against servlet and jsp apis from tomcat6.
 
-* Mon May 16 2005 David Walluck <walluck@mandriva.org> 0:2.3.0-8.2mdk
-- update javac patch
+* Mon Jan 11 2010 Andrew Overholt <overholt@redhat.com> 2.4.0-4
+- Fix License (ASL 2.0 and not 1.1) (rhbz#554465).
 
-* Mon May 16 2005 David Walluck <walluck@mandriva.org> 0:2.3.0-8.1mdk
-- release
+* Mon Sep 14 2009 Christoph Höger <choeger@cs.tu-berlin.de> - 0:2.4.0-3
+- Fix typo in Requires
 
-* Wed Nov 03 2004 Nicolas Mailhot <nim@jpackage.org>  0:2.3.0-8jpp
+* Wed Sep 09 2009 Christoph Höger <choeger@cs.tu-berlin.de> - 0:2.4.0-1
+- New Upstream release: 2.4.0
+- Add jython build dependency to include bsf-jython engine
+
+* Fri Jul 24 2009 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 0:2.3.0-15
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_12_Mass_Rebuild
+
+* Mon Feb 23 2009 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 0:2.3.0-14
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_11_Mass_Rebuild
+
+* Wed Jul  9 2008 Tom "spot" Callaway <tcallawa@redhat.com> - 0:2.3.0-13
+- drop repotag
+- fix license
+
+* Tue Feb 19 2008 Fedora Release Engineering <rel-eng@fedoraproject.org> - 0:2.3.0-12jpp.2
+- Autorebuild for GCC 4.3
+
+* Wed Mar 07 2007 Permaine Cheung <pcheung@redhat.com> 0:2.3.0-11jpp.2
+- Update spec file as per Fedora guidelines
+
+* Thu Aug 03 2006 Deepak Bhole <dbhole@redhat.com> 0:2.3.0-11jpp.1
+- Added missing requirements.
+
+* Sat Jul 22 2006 Jakub Jelinek <jakub@redhat.com> 0:2.3.0-10jpp_2fc
+- Rebuilt
+
+* Fri Jul 21 2006 Deepak Bhole <dbhole@redhat.com> 0:2.3.0-10jpp_2fc
+- Removing vendor and distribution tags.
+
+* Thu Jul 20 2006 Deepak Bhole <dbhole@redhat.com> 0:2.3.0-10jpp_1fc
+- Added conditional native compilation.
+- From gbenson@redhat:
+-   Build without Jython or Rhino for now.
+-   Build with servletapi5.
+-   Avoid Sun-specific classes.
+
+* Wed Apr 26 2006 Fernando Nasser <fnasser@redhat.com>  0:2.3.0-9jpp
+- First JPP 1.7 build
+
+* Wed Nov 3 2004 Nicolas Mailhot <nim@jpackage.org>  0:2.3.0-8jpp
 - Clean up specfile a bit
 
-* Sat Aug 21 2004 Ralph Apel <r.apel at r-apel.de> 0:2.3.0-7jpp
+* Fri Aug 20 2004 Ralph Apel <r.apel at r-apel.de> 0:2.3.0-7jpp
 - Build with ant-1.6.2
 
+* Thu Oct 09 2003 David Walluck <david@anti-microsoft.org> 0:2.3.0-6jpp
+- add javadoc symlinks
+- change Apache Software License to Apache License
+
+* Tue Aug 26 2003 David Walluck <david@anti-microsoft.org> 0:2.3.0-5jpp
+- remove all Requires
+
+* Fri Apr 12 2003 David Walluck <david@anti-microsoft.org> 0:2.3.0-4jpp
+- fix strange permissions
+
+* Fri Apr 11 2003 David Walluck <david@anti-microsoft.org> 0:2.3.0-3jpp
+- rebuild for jpackage 1.5
+
+* Wed Jan 22 2003 David Walluck <david@anti-microsoft.org> 2.3.0-2jpp
+- Requires/BuildRequires: xalan-j2
+- update %%description
+
+* Mon Jan 13 2003 David Walluck <david@anti-microsoft.org> 2.3.0-1jpp
+- version 2.3.0 (first jakarta release)
+
+* Tue May 07 2002 Guillaume Rousse <guillomovitch@users.sourceforge.net> 2.2-5jpp
+- vendor, distribution, group tags
+- versioned dir for javadoc
+- section macro
+
+* Sat Dec 1 2001 Guillaume Rousse <guillomovitch@users.sourceforge.net> 2.2-4jpp
+- javadoc in javadoc package
+
+* Wed Nov 21 2001 Christian Zoffoli <czoffoli@littlepenguin.org> 2.2-3jpp
+- removed packager tag
+- new jpp extension
+- fixed url
+
+* Sat Oct 6 2001 Guillaume Rousse <guillomovitch@users.sourceforge.net> 2.2-2jpp
+- first unified release
+- used original tarball
+- s/jPackage/JPackage
+
+* Thu Aug 30 2001 Guillaume Rousse <guillomovitch@users.sourceforge.net> 2.2-1jpp
+- first Mandrake release
