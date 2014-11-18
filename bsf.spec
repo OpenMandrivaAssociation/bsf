@@ -33,7 +33,7 @@
 
 Name:           bsf
 Version:        2.4.0
-Release:        17.1%{?dist}
+Release:        17.2%{?dist}
 Epoch:          0
 Summary:        Bean Scripting Framework
 License:        ASL 2.0
