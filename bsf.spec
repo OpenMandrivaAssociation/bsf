@@ -1,6 +1,4 @@
 %{?_javapackages_macros:%_javapackages_macros}
-%undefine __cp
-%define __cp /bin/cp
 # Copyright (c) 2000-2005, JPackage Project
 # All rights reserved.
 #
@@ -33,12 +31,12 @@
 
 Name:           bsf
 Version:        2.4.0
-Release:        17.2%{?dist}
+Release:        19%{?dist}
 Epoch:          0
 Summary:        Bean Scripting Framework
 License:        ASL 2.0
 URL:            http://commons.apache.org/bsf/
-
+Group:          System/Libraries
 Source0:        http://apache.mirror.anlx.net//commons/%{name}/source/%{name}-src-%{version}.tar.gz
 Source1:        %{name}-pom.xml
 Patch0:         build-file.patch
@@ -81,7 +79,7 @@ engines:
 
 %package javadoc
 Summary:        Javadoc for %{name}
-
+Group:          Documentation
 Requires:       jpackage-utils
 
 %description javadoc
@@ -91,46 +89,44 @@ Javadoc for %{name}.
 %setup -q
 # remove all binary libs
 find . -name "*.jar" -exec %{__rm} -f {} \;
-%{__rm} -fr bsf
+rm -fr bsf
 
 %patch0 -p1
 %patch1 -p1
 
 %build
-[ -z "$JAVA_HOME" ] && export JAVA_HOME=%{_jvmdir}/java
 export CLASSPATH=$(build-classpath apache-commons-logging xalan-j2 rhino)
 ant jar
-%{__rm} -rf bsf/src/org/apache/bsf/engines/java
+rm -rf bsf/src/org/apache/bsf/engines/java
 ant javadocs
 
 %install
 # jar
-%{__install} -d -m 755 %{buildroot}%{_javadir}
-%{__install} -m 644 build/lib/%{name}.jar \
+install -d -m 755 %{buildroot}%{_javadir}
+install -m 644 build/lib/%{name}.jar \
              %{buildroot}%{_javadir}/%{name}.jar
 # javadoc
-%{__install} -d -m 755 %{buildroot}%{_javadocdir}/%{name}
-%{__cp} -pr build/javadocs/* %{buildroot}%{_javadocdir}/%{name}
+install -d -m 755 %{buildroot}%{_javadocdir}/%{name}
+cp -pr build/javadocs/* %{buildroot}%{_javadocdir}/%{name}
 
-%{__install} -DTm 644 %{SOURCE1} %{buildroot}%{_mavenpomdir}/JPP-%{name}.pom
-%add_maven_depmap JPP-%{name}.pom %{name}.jar -a "org.apache.bsf:%{name}"
+install -DTm 644 %{SOURCE1} %{buildroot}%{_mavenpomdir}/JPP-%{name}.pom
+%add_maven_depmap -a "org.apache.bsf:%{name}"
 
-%pre javadoc
-# workaround for rpm bug, can be removed in F-20
-[ $1 -gt 1 ] && [ -L %{_javadocdir}/%{name} ] && \
-rm -rf $(readlink -f %{_javadocdir}/%{name}) %{_javadocdir}/%{name} || :
-
-%files
+%files -f .mfiles
 %doc LICENSE.txt AUTHORS.txt CHANGES.txt NOTICE.txt README.txt TODO.txt RELEASE-NOTE.txt
-%{_javadir}/%{name}.jar
-%{_mavenpomdir}/JPP-%{name}.pom
-%{_mavendepmapfragdir}/%{name}
 
 %files javadoc
 %doc LICENSE.txt NOTICE.txt
 %{_javadocdir}/%{name}
 
 %changelog
+* Sat Jun 07 2014 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 0:2.4.0-19
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_21_Mass_Rebuild
+
+* Wed May 21 2014 Mikolaj Izdebski <mizdebsk@redhat.com> - 0:2.4.0-18
+- Use .mfiles generated during build
+- Update to current packaging guidelines
+
 * Sat Aug 03 2013 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 0:2.4.0-17
 - Rebuilt for https://fedoraproject.org/wiki/Fedora_20_Mass_Rebuild
 
@@ -265,3 +261,4 @@ rm -rf $(readlink -f %{_javadocdir}/%{name}) %{_javadocdir}/%{name} || :
 
 * Thu Aug 30 2001 Guillaume Rousse <guillomovitch@users.sourceforge.net> 2.2-1jpp
 - first Mandrake release
+
