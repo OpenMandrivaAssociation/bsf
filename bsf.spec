@@ -35,7 +35,7 @@ Release:        19%{?dist}
 Epoch:          0
 Summary:        Bean Scripting Framework
 License:        ASL 2.0
-URL:            http://commons.apache.org/bsf/
+URL:            https://commons.apache.org/bsf/
 Group:          System/Libraries
 Source0:        http://apache.mirror.anlx.net//commons/%{name}/source/%{name}-src-%{version}.tar.gz
 Source1:        %{name}-pom.xml
